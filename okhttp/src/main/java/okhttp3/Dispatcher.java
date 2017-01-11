@@ -124,6 +124,7 @@ public final class Dispatcher {
   }
 
   synchronized void enqueue(AsyncCall call) {
+    // 添加异步任务
     if (runningAsyncCalls.size() < maxRequests && runningCallsForHost(call) < maxRequestsPerHost) {
       runningAsyncCalls.add(call);
       executorService().execute(call);

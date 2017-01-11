@@ -17,6 +17,7 @@ package okhttp3.internal.http;
 
 import java.io.IOException;
 import java.util.List;
+
 import okhttp3.Connection;
 import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
@@ -38,7 +39,7 @@ public final class RealInterceptorChain implements Interceptor.Chain {
   private int calls;
 
   public RealInterceptorChain(List<Interceptor> interceptors, StreamAllocation streamAllocation,
-      HttpCodec httpCodec, Connection connection, int index, Request request) {
+                              HttpCodec httpCodec, Connection connection, int index, Request request) {
     this.interceptors = interceptors;
     this.connection = connection;
     this.streamAllocation = streamAllocation;
@@ -47,7 +48,8 @@ public final class RealInterceptorChain implements Interceptor.Chain {
     this.request = request;
   }
 
-  @Override public Connection connection() {
+  @Override
+  public Connection connection() {
     return connection;
   }
 
@@ -55,21 +57,28 @@ public final class RealInterceptorChain implements Interceptor.Chain {
     return streamAllocation;
   }
 
+  // Http编解码
   public HttpCodec httpStream() {
     return httpCodec;
   }
 
-  @Override public Request request() {
+  @Override
+  public Request request() {
     return request;
   }
 
-  @Override public Response proceed(Request request) throws IOException {
+  // Chain如何处理请求呢?
+  @Override
+  public Response proceed(Request request) throws IOException {
     return proceed(request, streamAllocation, httpCodec, connection);
   }
 
   public Response proceed(Request request, StreamAllocation streamAllocation, HttpCodec httpCodec,
-      Connection connection) throws IOException {
-    if (index >= interceptors.size()) throw new AssertionError();
+                          Connection connection) throws IOException {
+    // 从指定的位置: index 开始执行 interceptors
+    if (index >= interceptors.size()) {
+      throw new AssertionError();
+    }
 
     calls++;
 
@@ -88,7 +97,13 @@ public final class RealInterceptorChain implements Interceptor.Chain {
     // Call the next interceptor in the chain.
     RealInterceptorChain next = new RealInterceptorChain(
         interceptors, streamAllocation, httpCodec, connection, index + 1, request);
+
+    // 执行当前的Interceptor, 然后call下一个?
+    // Chain和 interceptors的关系?
+    // interceptors通过Chain来实现这种往下传递的关系
     Interceptor interceptor = interceptors.get(index);
+
+    // 执行当前的interceptor, 然后再处理下一个
     Response response = interceptor.intercept(next);
 
     // Confirm that the next interceptor made its required call to chain.proceed().

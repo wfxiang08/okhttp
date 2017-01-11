@@ -47,6 +47,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * potentially stale).
  */
 public final class CacheStrategy {
+  // 注意两个参数的意义：返回的缓存，或者继续？？？
   /** The request to send on the network, or null if this call doesn't use the network. */
   public final Request networkRequest;
 

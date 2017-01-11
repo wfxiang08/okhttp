@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.security.cert.Certificate;
 import java.util.Collections;
 import java.util.Set;
+
 import okhttp3.CertificatePinner;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -26,13 +27,23 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public final class CheckHandshake {
-  /** Rejects otherwise-trusted certificates. */
+
+  /**
+   * Rejects otherwise-trusted certificates.
+   */
   private static final Interceptor CHECK_HANDSHAKE_INTERCEPTOR = new Interceptor() {
     Set<String> blacklist = Collections.singleton(
         "sha256/afwiKY3RxoMmLkuRW1l7QsPZTJPwDS2pdDROQjXw8ig=");
 
-    @Override public Response intercept(Chain chain) throws IOException {
+    @Override
+    public Response intercept(Chain chain) throws IOException {
+      // Interceptor工作模式:
+      // 1. 抛出异常
+      // 2. 直接返回
+      // 3. 继续处理原始的请求
+      //
       for (Certificate certificate : chain.connection().handshake().peerCertificates()) {
+        // 获取，检查certificate的pin, 没有被禁用，则让下一个Chain处理
         String pin = CertificatePinner.pin(certificate);
         if (blacklist.contains(pin)) {
           throw new IOException("Blacklisted peer certificate: " + pin);

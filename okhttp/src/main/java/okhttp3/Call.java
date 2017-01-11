@@ -26,6 +26,7 @@ public interface Call extends Cloneable {
   Request request();
 
   /**
+   * 如何Block呢? 外部外部如何等待呢？
    * Invokes the request immediately, and blocks until the response can be processed or is in
    * error.
    *
@@ -45,6 +46,7 @@ public interface Call extends Cloneable {
    * avoid leaking resources callers must {@linkplain ResponseBody close the response body} or the
    * Response.
    *
+   * 传输层，应用层的关系?
    * <p>Note that transport-layer success (receiving a HTTP response code, headers and body) does
    * not necessarily indicate application-layer success: {@code response} may still indicate an
    * unhappy HTTP response code like 404 or 500.

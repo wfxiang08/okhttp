@@ -49,13 +49,16 @@ public final class CacheInterceptor implements Interceptor {
     this.cache = cache;
   }
 
-  @Override public Response intercept(Chain chain) throws IOException {
-    Response cacheCandidate = cache != null
-        ? cache.get(chain.request())
-        : null;
+  @Override
+  public Response intercept(Chain chain) throws IOException {
+    // 如何通过Inteceptor实现Cache操作呢?
+
+    // 1. cache
+    Response cacheCandidate = cache != null  ? cache.get(chain.request()) : null;
 
     long now = System.currentTimeMillis();
 
+    // 2. 通过CacheStrategy来处理cacheResponse
     CacheStrategy strategy = new CacheStrategy.Factory(now, chain.request(), cacheCandidate).get();
     Request networkRequest = strategy.networkRequest;
     Response cacheResponse = strategy.cacheResponse;
@@ -70,6 +73,7 @@ public final class CacheInterceptor implements Interceptor {
 
     // If we're forbidden from using the network and the cache is insufficient, fail.
     if (networkRequest == null && cacheResponse == null) {
+      // 只读取缓存，报告失败
       return new Response.Builder()
           .request(chain.request())
           .protocol(Protocol.HTTP_1_1)
@@ -83,11 +87,14 @@ public final class CacheInterceptor implements Interceptor {
 
     // If we don't need the network, we're done.
     if (networkRequest == null) {
+      // 不需要网络请求，直接返回结果
       return cacheResponse.newBuilder()
           .cacheResponse(stripBody(cacheResponse))
           .build();
     }
 
+
+    // 本地缓存无用，请求网络
     Response networkResponse = null;
     try {
       networkResponse = chain.proceed(networkRequest);
@@ -99,8 +106,10 @@ public final class CacheInterceptor implements Interceptor {
     }
 
     // If we have a cache response too, then we're doing a conditional get.
+    // 304, Etag， ModifySince
     if (cacheResponse != null) {
       if (networkResponse.code() == HTTP_NOT_MODIFIED) {
+        // Etag, Modify Since必须是要求: 数据在本地有缓存，否则傻逼了
         Response response = cacheResponse.newBuilder()
             .headers(combine(cacheResponse.headers(), networkResponse.headers()))
             .sentRequestAtMillis(networkResponse.sentRequestAtMillis())
@@ -112,6 +121,7 @@ public final class CacheInterceptor implements Interceptor {
 
         // Update the cache after combining headers but before stripping the
         // Content-Encoding header (as performed by initContentStream()).
+        // 更新统计数据
         cache.trackConditionalCacheHit();
         cache.update(cacheResponse, response);
         return response;
@@ -120,12 +130,14 @@ public final class CacheInterceptor implements Interceptor {
       }
     }
 
+    // 普通的请求
     Response response = networkResponse.newBuilder()
         .cacheResponse(stripBody(cacheResponse))
         .networkResponse(stripBody(networkResponse))
         .build();
 
     if (HttpHeaders.hasBody(response)) {
+      // 普通的请求是否需要Cache
       CacheRequest cacheRequest = maybeCache(response, networkResponse.request(), cache);
       response = cacheWritingResponse(cacheRequest, response);
     }

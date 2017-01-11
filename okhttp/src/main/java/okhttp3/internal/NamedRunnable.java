@@ -25,7 +25,8 @@ public abstract class NamedRunnable implements Runnable {
     this.name = Util.format(format, args);
   }
 
-  @Override public final void run() {
+  @Override
+  public final void run() {
     String oldName = Thread.currentThread().getName();
     Thread.currentThread().setName(name);
     try {
@@ -35,5 +36,7 @@ public abstract class NamedRunnable implements Runnable {
     }
   }
 
+  // Runnable， Thread有名字
+  // 执行execute
   protected abstract void execute();
 }

@@ -18,6 +18,7 @@ package okhttp3;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
 import okhttp3.internal.NamedRunnable;
 import okhttp3.internal.cache.CacheInterceptor;
 import okhttp3.internal.connection.ConnectInterceptor;
@@ -31,10 +32,13 @@ import okhttp3.internal.platform.Platform;
 import static okhttp3.internal.platform.Platform.INFO;
 
 final class RealCall implements Call {
+  // 基于OKHttpClient的Call实现
   final OkHttpClient client;
   final RetryAndFollowUpInterceptor retryAndFollowUpInterceptor;
 
-  /** The application's original request unadulterated by redirects or auth headers. */
+  /**
+   * The application's original request unadulterated by redirects or auth headers.
+   */
   final Request originalRequest;
   final boolean forWebSocket;
 
@@ -48,20 +52,31 @@ final class RealCall implements Call {
     this.retryAndFollowUpInterceptor = new RetryAndFollowUpInterceptor(client, forWebSocket);
   }
 
-  @Override public Request request() {
+  @Override
+  public Request request() {
     return originalRequest;
   }
 
-  @Override public Response execute() throws IOException {
+  // 使用模式: 创建RealCall(xxx)之后，立即调用: execute
+  @Override
+  public Response execute() throws IOException {
     synchronized (this) {
-      if (executed) throw new IllegalStateException("Already Executed");
+      if (executed) {
+        throw new IllegalStateException("Already Executed");
+      }
       executed = true;
     }
+
     captureCallStackTrace();
     try {
+      // 通过: dispatch来执行自己
+      // 同步网络请求
       client.dispatcher().executed(this);
+
       Response result = getResponseWithInterceptorChain();
-      if (result == null) throw new IOException("Canceled");
+      if (result == null) {
+        throw new IOException("Canceled");
+      }
       return result;
     } finally {
       client.dispatcher().finished(this);
@@ -73,29 +88,38 @@ final class RealCall implements Call {
     retryAndFollowUpInterceptor.setCallStackTrace(callStackTrace);
   }
 
-  @Override public void enqueue(Callback responseCallback) {
+  @Override
+  public void enqueue(Callback responseCallback) {
     synchronized (this) {
-      if (executed) throw new IllegalStateException("Already Executed");
+      if (executed) {
+        throw new IllegalStateException("Already Executed");
+      }
       executed = true;
     }
     captureCallStackTrace();
+
+    // 添加到client中，通过callback异步通知caller
     client.dispatcher().enqueue(new AsyncCall(responseCallback));
   }
 
-  @Override public void cancel() {
+  @Override
+  public void cancel() {
     retryAndFollowUpInterceptor.cancel();
   }
 
-  @Override public synchronized boolean isExecuted() {
+  @Override
+  public synchronized boolean isExecuted() {
     return executed;
   }
 
-  @Override public boolean isCanceled() {
+  @Override
+  public boolean isCanceled() {
     return retryAndFollowUpInterceptor.isCanceled();
   }
 
   @SuppressWarnings("CloneDoesntCallSuperClone") // We are a final type & this saves clearing state.
-  @Override public RealCall clone() {
+  @Override
+  public RealCall clone() {
     return new RealCall(client, originalRequest, forWebSocket);
   }
 
@@ -123,7 +147,8 @@ final class RealCall implements Call {
       return RealCall.this;
     }
 
-    @Override protected void execute() {
+    @Override
+    protected void execute() {
       boolean signalledCallback = false;
       try {
         Response response = getResponseWithInterceptorChain();
@@ -164,18 +189,23 @@ final class RealCall implements Call {
   Response getResponseWithInterceptorChain() throws IOException {
     // Build a full stack of interceptors.
     List<Interceptor> interceptors = new ArrayList<>();
+
+    // 这些Interceptors是如何工作的呢?
     interceptors.addAll(client.interceptors());
     interceptors.add(retryAndFollowUpInterceptor);
     interceptors.add(new BridgeInterceptor(client.cookieJar()));
-    interceptors.add(new CacheInterceptor(client.internalCache()));
+    interceptors.add(new CacheInterceptor(client.internalCache())); // 缓存的管理
     interceptors.add(new ConnectInterceptor(client));
     if (!forWebSocket) {
       interceptors.addAll(client.networkInterceptors());
     }
     interceptors.add(new CallServerInterceptor(forWebSocket));
 
+    // 将全部的Interceptors构成一个Chain
     Interceptor.Chain chain = new RealInterceptorChain(
         interceptors, null, null, null, 0, originalRequest);
+
+    // 开始处理整个Chain
     return chain.proceed(originalRequest);
   }
 }

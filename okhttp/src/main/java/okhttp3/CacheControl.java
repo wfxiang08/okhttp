@@ -68,7 +68,7 @@ public final class CacheControl {
     this.mustRevalidate = false;
     this.maxStaleSeconds = builder.maxStaleSeconds;
     this.minFreshSeconds = builder.minFreshSeconds;
-    this.onlyIfCached = builder.onlyIfCached;
+    this.onlyIfCached = builder.onlyIfCached; // 只读取缓存，没有就失败
     this.noTransform = builder.noTransform;
   }
 

@@ -37,6 +37,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
+
 import okhttp3.internal.Internal;
 import okhttp3.internal.Util;
 import okhttp3.internal.cache.InternalCache;
@@ -51,21 +52,22 @@ import okhttp3.internal.ws.RealWebSocket;
 /**
  * Factory for {@linkplain Call calls}, which can be used to send HTTP requests and read their
  * responses.
- *
+ * <p>
  * <h3>OkHttpClients should be shared</h3>
- *
+ * <p>
  * <p>OkHttp performs best when you create a single {@code OkHttpClient} instance and reuse it for
  * all of your HTTP calls. This is because each client holds its own connection pool and thread
  * pools. Reusing connections and threads reduces latency and saves memory. Conversely, creating a
  * client for each request wastes resources on idle pools.
- *
+ * <p>
+ * 创建共享的Instance
  * <p>Use {@code new OkHttpClient()} to create a shared instance with the default settings:
  * <pre>   {@code
  *
  *   // The singleton HTTP client.
  *   public final OkHttpClient client = new OkHttpClient();
  * }</pre>
- *
+ * <p>
  * <p>Or use {@code new OkHttpClient.Builder()} to create a shared instance with custom settings:
  * <pre>   {@code
  *
@@ -75,46 +77,46 @@ import okhttp3.internal.ws.RealWebSocket;
  *       .cache(new Cache(cacheDir, cacheSize))
  *       .build();
  * }</pre>
- *
+ * <p>
  * <h3>Customize your client with newBuilder()</h3>
- *
+ * <p>
  * <p>You can customize a shared OkHttpClient instance with {@link #newBuilder()}. This builds a
  * client that shares the same connection pool, thread pools, and configuration. Use the builder
  * methods to configure the derived client for a specific purpose.
- *
+ * <p>
  * <p>This example shows a call with a short 500 millisecond timeout: <pre>   {@code
- *
+ * <p>
  *   OkHttpClient eagerClient = client.newBuilder()
  *       .readTimeout(500, TimeUnit.MILLISECONDS)
  *       .build();
  *   Response response = eagerClient.newCall(request).execute();
  * }</pre>
- *
+ * <p>
  * <h3>Shutdown isn't necessary</h3>
- *
+ * <p>
  * <p>The threads and connections that are held will be released automatically if they remain idle.
  * But if you are writing a application that needs to aggressively release unused resources you may
  * do so.
- *
+ * <p>
  * <p>Shutdown the dispatcher's executor service with {@link ExecutorService#shutdown shutdown()}.
  * This will also cause future calls to the client to be rejected. <pre>   {@code
- *
+ * <p>
  *     client.dispatcher().executorService().shutdown();
  * }</pre>
- *
+ * <p>
  * <p>Clear the connection pool with {@link ConnectionPool#evictAll() evictAll()}. Note that the
  * connection pool's daemon thread may not exit immediately. <pre>   {@code
- *
+ * <p>
  *     client.connectionPool().evictAll();
  * }</pre>
- *
+ * <p>
  * <p>If your client has a cache, call {@link Cache#close close()}. Note that it is an error to
  * create calls against a cache that is closed, and doing so will cause the call to crash.
  * <pre>   {@code
  *
  *     client.cache().close();
  * }</pre>
- *
+ * <p>
  * <p>OkHttp also uses daemon threads for HTTP/2 connections. These will exit automatically if they
  * remain idle.
  */
@@ -126,43 +128,53 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS, ConnectionSpec.CLEARTEXT);
 
   static {
+    // 注意这个模块的实现
     Internal.instance = new Internal() {
-      @Override public void addLenient(Headers.Builder builder, String line) {
+      @Override
+      public void addLenient(Headers.Builder builder, String line) {
         builder.addLenient(line);
       }
 
-      @Override public void addLenient(Headers.Builder builder, String name, String value) {
+      @Override
+      public void addLenient(Headers.Builder builder, String name, String value) {
         builder.addLenient(name, value);
       }
 
-      @Override public void setCache(OkHttpClient.Builder builder, InternalCache internalCache) {
+      @Override
+      public void setCache(OkHttpClient.Builder builder, InternalCache internalCache) {
         builder.setInternalCache(internalCache);
       }
 
-      @Override public boolean connectionBecameIdle(
+      @Override
+      public boolean connectionBecameIdle(
           ConnectionPool pool, RealConnection connection) {
         return pool.connectionBecameIdle(connection);
       }
 
-      @Override public RealConnection get(
+      @Override
+      public RealConnection get(
           ConnectionPool pool, Address address, StreamAllocation streamAllocation) {
         return pool.get(address, streamAllocation);
       }
 
-      @Override public Closeable deduplicate(
+      @Override
+      public Closeable deduplicate(
           ConnectionPool pool, Address address, StreamAllocation streamAllocation) {
         return pool.deduplicate(address, streamAllocation);
       }
 
-      @Override public void put(ConnectionPool pool, RealConnection connection) {
+      @Override
+      public void put(ConnectionPool pool, RealConnection connection) {
         pool.put(connection);
       }
 
-      @Override public RouteDatabase routeDatabase(ConnectionPool connectionPool) {
+      @Override
+      public RouteDatabase routeDatabase(ConnectionPool connectionPool) {
         return connectionPool.routeDatabase;
       }
 
-      @Override public int code(Response.Builder responseBuilder) {
+      @Override
+      public int code(Response.Builder responseBuilder) {
         return responseBuilder.code;
       }
 
@@ -171,16 +183,19 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
         tlsConfiguration.apply(sslSocket, isFallback);
       }
 
-      @Override public HttpUrl getHttpUrlChecked(String url)
+      @Override
+      public HttpUrl getHttpUrlChecked(String url)
           throws MalformedURLException, UnknownHostException {
         return HttpUrl.getChecked(url);
       }
 
-      @Override public StreamAllocation streamAllocation(Call call) {
+      @Override
+      public StreamAllocation streamAllocation(Call call) {
         return ((RealCall) call).streamAllocation();
       }
 
-      @Override public Call newWebSocketCall(OkHttpClient client, Request originalRequest) {
+      @Override
+      public Call newWebSocketCall(OkHttpClient client, Request originalRequest) {
         return new RealCall(client, originalRequest, true);
       }
     };
@@ -227,7 +242,10 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     this.proxySelector = builder.proxySelector;
     this.cookieJar = builder.cookieJar;
     this.cache = builder.cache;
+
+    // 这是一个修改cache的机会
     this.internalCache = builder.internalCache;
+
     this.socketFactory = builder.socketFactory;
 
     boolean isTLS = false;
@@ -235,6 +253,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       isTLS = isTLS || spec.isTls();
     }
 
+    // sslSocketFactory的管理
     if (builder.sslSocketFactory != null || !isTLS) {
       this.sslSocketFactory = builder.sslSocketFactory;
       this.certificateChainCleaner = builder.certificateChainCleaner;
@@ -247,6 +266,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     this.hostnameVerifier = builder.hostnameVerifier;
     this.certificatePinner = builder.certificatePinner.withCertificateChainCleaner(
         certificateChainCleaner);
+
     this.proxyAuthenticator = builder.proxyAuthenticator;
     this.authenticator = builder.authenticator;
     this.connectionPool = builder.connectionPool;
@@ -260,6 +280,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     this.pingInterval = builder.pingInterval;
   }
 
+  // 获取默认的TrustManager
   private X509TrustManager systemDefaultTrustManager() {
     try {
       TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
@@ -279,29 +300,37 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
   private SSLSocketFactory systemDefaultSslSocketFactory(X509TrustManager trustManager) {
     try {
       SSLContext sslContext = SSLContext.getInstance("TLS");
-      sslContext.init(null, new TrustManager[] { trustManager }, null);
+      sslContext.init(null, new TrustManager[]{trustManager}, null);
       return sslContext.getSocketFactory();
     } catch (GeneralSecurityException e) {
       throw new AssertionError(); // The system has no TLS. Just give up.
     }
   }
 
-  /** Default connect timeout (in milliseconds). */
+  /**
+   * Default connect timeout (in milliseconds).
+   */
   public int connectTimeoutMillis() {
     return connectTimeout;
   }
 
-  /** Default read timeout (in milliseconds). */
+  /**
+   * Default read timeout (in milliseconds).
+   */
   public int readTimeoutMillis() {
     return readTimeout;
   }
 
-  /** Default write timeout (in milliseconds). */
+  /**
+   * Default write timeout (in milliseconds).
+   */
   public int writeTimeoutMillis() {
     return writeTimeout;
   }
 
-  /** Web socket ping interval (in milliseconds). */
+  /**
+   * Web socket ping interval (in milliseconds).
+   */
   public int pingIntervalMillis() {
     return pingInterval;
   }
@@ -322,6 +351,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     return cache;
   }
 
+  // 这是一个修改OkHttpClient的机会
   InternalCache internalCache() {
     return cache != null ? cache.internalCache : internalCache;
   }
@@ -403,14 +433,17 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
   /**
    * Prepares the {@code request} to be executed at some point in the future.
    */
-  @Override public Call newCall(Request request) {
+  @Override
+  public Call newCall(Request request) {
+    // 如何创建一个网络请求呢?
     return new RealCall(this, request, false /* for web socket */);
   }
 
   /**
    * Uses {@code request} to connect a new web socket.
    */
-  @Override public WebSocket newWebSocket(Request request, WebSocketListener listener) {
+  @Override
+  public WebSocket newWebSocket(Request request, WebSocketListener listener) {
     RealWebSocket webSocket = new RealWebSocket(request, listener, new SecureRandom());
     webSocket.connect(this);
     return webSocket;
@@ -470,6 +503,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       pingInterval = 0;
     }
 
+    // 从: OkHttpClient创建Builder
     Builder(OkHttpClient okHttpClient) {
       this.dispatcher = okHttpClient.dispatcher;
       this.proxy = okHttpClient.proxy;
@@ -532,7 +566,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * automatically send web socket ping frames until either the web socket fails or it is closed.
      * This keeps the connection alive and may detect connectivity failures early. No timeouts are
      * enforced on the acknowledging pongs.
-     *
+     * <p>
      * <p>The default value of 0 disables client-initiated pings.
      */
     public Builder pingInterval(long interval, TimeUnit unit) {
@@ -563,7 +597,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * Sets the proxy selection policy to be used if no {@link #proxy proxy} is specified
      * explicitly. The proxy selector may return multiple proxies; in that case they will be tried
      * in sequence until a successful connection is established.
-     *
+     * <p>
      * <p>If unset, the {@link ProxySelector#getDefault() system-wide default} proxy selector will
      * be used.
      */
@@ -575,7 +609,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Sets the handler that can accept cookies from incoming HTTP responses and provides cookies to
      * outgoing HTTP requests.
-     *
+     * <p>
      * <p>If unset, {@linkplain CookieJar#NO_COOKIES no cookies} will be accepted nor provided.
      */
     public Builder cookieJar(CookieJar cookieJar) {
@@ -584,13 +618,20 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       return this;
     }
 
-    /** Sets the response cache to be used to read and write cached responses. */
+    // 这两个似乎冲突呀?
+    // internalCache vs. cache
+
+    /**
+     * Sets the response cache to be used to read and write cached responses.
+     */
     void setInternalCache(InternalCache internalCache) {
       this.internalCache = internalCache;
       this.cache = null;
     }
 
-    /** Sets the response cache to be used to read and write cached responses. */
+    /**
+     * Sets the response cache to be used to read and write cached responses.
+     */
     public Builder cache(Cache cache) {
       this.cache = cache;
       this.internalCache = null;
@@ -599,11 +640,14 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
 
     /**
      * Sets the DNS service used to lookup IP addresses for hostnames.
-     *
+     * <p>
      * <p>If unset, the {@link Dns#SYSTEM system-wide default} DNS will be used.
      */
     public Builder dns(Dns dns) {
-      if (dns == null) throw new NullPointerException("dns == null");
+      // 如何通过DNS来优化网络请求呢？
+      if (dns == null) {
+        throw new NullPointerException("dns == null");
+      }
       this.dns = dns;
       return this;
     }
@@ -612,12 +656,14 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * Sets the socket factory used to create connections. OkHttp only uses the parameterless {@link
      * SocketFactory#createSocket() createSocket()} method to create unconnected sockets. Overriding
      * this method, e. g., allows the socket to be bound to a specific local address.
-     *
+     * <p>
      * <p>If unset, the {@link SocketFactory#getDefault() system-wide default} socket factory will
      * be used.
      */
     public Builder socketFactory(SocketFactory socketFactory) {
-      if (socketFactory == null) throw new NullPointerException("socketFactory == null");
+      if (socketFactory == null) {
+        throw new NullPointerException("socketFactory == null");
+      }
       this.socketFactory = socketFactory;
       return this;
     }
@@ -627,12 +673,14 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * be used.
      *
      * @deprecated {@code SSLSocketFactory} does not expose its {@link X509TrustManager}, which is
-     *     a field that OkHttp needs to build a clean certificate chain. This method instead must
-     *     use reflection to extract the trust manager. Applications should prefer to call {@link
-     *     #sslSocketFactory(SSLSocketFactory, X509TrustManager)}, which avoids such reflection.
+     * a field that OkHttp needs to build a clean certificate chain. This method instead must
+     * use reflection to extract the trust manager. Applications should prefer to call {@link
+     * #sslSocketFactory(SSLSocketFactory, X509TrustManager)}, which avoids such reflection.
      */
     public Builder sslSocketFactory(SSLSocketFactory sslSocketFactory) {
-      if (sslSocketFactory == null) throw new NullPointerException("sslSocketFactory == null");
+      if (sslSocketFactory == null) {
+        throw new NullPointerException("sslSocketFactory == null");
+      }
       X509TrustManager trustManager = Platform.get().trustManager(sslSocketFactory);
       if (trustManager == null) {
         throw new IllegalStateException("Unable to extract the trust manager on " + Platform.get()
@@ -646,12 +694,12 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Sets the socket factory and trust manager used to secure HTTPS connections. If unset, the
      * system defaults will be used.
-     *
+     * <p>
      * <p>Most applications should not call this method, and instead use the system defaults. Those
      * classes include special optimizations that can be lost if the implementations are decorated.
-     *
+     * <p>
      * <p>If necessary, you can create and configure the defaults yourself with the following code:
-     *
+     * <p>
      * <pre>   {@code
      *
      *   TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
@@ -685,11 +733,15 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Sets the verifier used to confirm that response certificates apply to requested hostnames for
      * HTTPS connections.
-     *
+     * <p>
      * <p>If unset, a default hostname verifier will be used.
      */
     public Builder hostnameVerifier(HostnameVerifier hostnameVerifier) {
-      if (hostnameVerifier == null) throw new NullPointerException("hostnameVerifier == null");
+      // 如何验证: hostname?
+      // 这个地方是可以做性能优化的!!!!
+      if (hostnameVerifier == null) {
+        throw new NullPointerException("hostnameVerifier == null");
+      }
       this.hostnameVerifier = hostnameVerifier;
       return this;
     }
@@ -700,6 +752,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * Pinning certificates avoids the need to trust certificate authorities.
      */
     public Builder certificatePinner(CertificatePinner certificatePinner) {
+      // 这个也似乎很牛逼!!!
       if (certificatePinner == null) throw new NullPointerException("certificatePinner == null");
       this.certificatePinner = certificatePinner;
       return this;
@@ -708,10 +761,11 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Sets the authenticator used to respond to challenges from origin servers. Use {@link
      * #proxyAuthenticator} to set the authenticator for proxy servers.
-     *
+     * <p>
      * <p>If unset, the {@linkplain Authenticator#NONE no authentication will be attempted}.
      */
     public Builder authenticator(Authenticator authenticator) {
+      // 是否需要认证? 如何需要认证，该做什么呢?
       if (authenticator == null) throw new NullPointerException("authenticator == null");
       this.authenticator = authenticator;
       return this;
@@ -720,7 +774,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Sets the authenticator used to respond to challenges from proxy servers. Use {@link
      * #authenticator} to set the authenticator for origin servers.
-     *
+     * <p>
      * <p>If unset, the {@linkplain Authenticator#NONE no authentication will be attempted}.
      */
     public Builder proxyAuthenticator(Authenticator proxyAuthenticator) {
@@ -731,10 +785,11 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
 
     /**
      * Sets the connection pool used to recycle HTTP and HTTPS connections.
-     *
+     * <p>
      * <p>If unset, a new connection pool will be used.
      */
     public Builder connectionPool(ConnectionPool connectionPool) {
+      // 连接池的管理
       if (connectionPool == null) throw new NullPointerException("connectionPool == null");
       this.connectionPool = connectionPool;
       return this;
@@ -742,7 +797,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
 
     /**
      * Configure this client to follow redirects from HTTPS to HTTP and from HTTP to HTTPS.
-     *
+     * <p>
      * <p>If unset, protocol redirects will be followed. This is different than the built-in {@code
      * HttpURLConnection}'s default.
      */
@@ -751,7 +806,9 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
       return this;
     }
 
-    /** Configure this client to follow redirects. If unset, redirects will be followed. */
+    /**
+     * Configure this client to follow redirects. If unset, redirects will be followed.
+     */
     public Builder followRedirects(boolean followRedirects) {
       this.followRedirects = followRedirects;
       return this;
@@ -760,18 +817,18 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
     /**
      * Configure this client to retry or not when a connectivity problem is encountered. By default,
      * this client silently recovers from the following problems:
-     *
+     * <p>
      * <ul>
-     *   <li><strong>Unreachable IP addresses.</strong> If the URL's host has multiple IP addresses,
-     *       failure to reach any individual IP address doesn't fail the overall request. This can
-     *       increase availability of multi-homed services.
-     *   <li><strong>Stale pooled connections.</strong> The {@link ConnectionPool} reuses sockets
-     *       to decrease request latency, but these connections will occasionally time out.
-     *   <li><strong>Unreachable proxy servers.</strong> A {@link ProxySelector} can be used to
-     *       attempt multiple proxy servers in sequence, eventually falling back to a direct
-     *       connection.
+     * <li><strong>Unreachable IP addresses.</strong> If the URL's host has multiple IP addresses,
+     * failure to reach any individual IP address doesn't fail the overall request. This can
+     * increase availability of multi-homed services.
+     * <li><strong>Stale pooled connections.</strong> The {@link ConnectionPool} reuses sockets
+     * to decrease request latency, but these connections will occasionally time out.
+     * <li><strong>Unreachable proxy servers.</strong> A {@link ProxySelector} can be used to
+     * attempt multiple proxy servers in sequence, eventually falling back to a direct
+     * connection.
      * </ul>
-     *
+     * <p>
      * Set this to false to avoid retrying requests when doing so is destructive. In this case the
      * calling application should do its own recovery of connectivity failures.
      */
@@ -794,27 +851,27 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
      * this client will prefer the most efficient transport available, falling back to more
      * ubiquitous protocols. Applications should only call this method to avoid specific
      * compatibility problems, such as web servers that behave incorrectly when HTTP/2 is enabled.
-     *
+     * <p>
      * <p>The following protocols are currently supported:
-     *
+     * <p>
      * <ul>
-     *     <li><a href="http://www.w3.org/Protocols/rfc2616/rfc2616.html">http/1.1</a>
-     *     <li><a href="http://tools.ietf.org/html/draft-ietf-httpbis-http2-17">h2</a>
+     * <li><a href="http://www.w3.org/Protocols/rfc2616/rfc2616.html">http/1.1</a>
+     * <li><a href="http://tools.ietf.org/html/draft-ietf-httpbis-http2-17">h2</a>
      * </ul>
-     *
+     * <p>
      * <p><strong>This is an evolving set.</strong> Future releases include support for transitional
      * protocols. The http/1.1 transport will never be dropped.
-     *
+     * <p>
      * <p>If multiple protocols are specified, <a
      * href="http://tools.ietf.org/html/draft-ietf-tls-applayerprotoneg">ALPN</a> will be used to
      * negotiate a transport.
-     *
+     * <p>
      * <p>{@link Protocol#HTTP_1_0} is not supported in this set. Requests are initiated with {@code
      * HTTP/1.1} only. If the server responds with {@code HTTP/1.0}, that will be exposed by {@link
      * Response#protocol()}.
      *
      * @param protocols the protocols to use, in order of preference. The list must contain {@link
-     * Protocol#HTTP_1_1}. It must not contain null or {@link Protocol#HTTP_1_0}.
+     *                  Protocol#HTTP_1_1}. It must not contain null or {@link Protocol#HTTP_1_0}.
      */
     public Builder protocols(List<Protocol> protocols) {
       // Create a private copy of the list.

@@ -139,6 +139,7 @@ public final class Cache implements Closeable, Flushable {
   private static final int ENTRY_BODY = 1;
   private static final int ENTRY_COUNT = 2;
 
+  // InternalCache做什么呢?
   final InternalCache internalCache = new InternalCache() {
     @Override public Response get(Request request) throws IOException {
       return Cache.this.get(request);
@@ -179,15 +180,20 @@ public final class Cache implements Closeable, Flushable {
   }
 
   Cache(File directory, long maxSize, FileSystem fileSystem) {
+    // 目录，文件系统，大小
     this.cache = DiskLruCache.create(fileSystem, directory, VERSION, ENTRY_COUNT, maxSize);
   }
 
+  // 这个需要做一些修改
   public static String key(HttpUrl url) {
     return ByteString.encodeUtf8(url.toString()).md5().hex();
   }
 
   Response get(Request request) {
+    // TODO: request.url()可以优化，例如: hls等可以去掉Expires/token之类的参数，也可以无限cache
     String key = key(request.url());
+
+    // 1. 获取snapshot
     DiskLruCache.Snapshot snapshot;
     Entry entry;
     try {
@@ -207,8 +213,10 @@ public final class Cache implements Closeable, Flushable {
       return null;
     }
 
+    // 2. 根据entry获取Response
     Response response = entry.response(snapshot);
 
+    // 3. 如何match resquest和response呢?
     if (!entry.matches(request, response)) {
       Util.closeQuietly(response.body());
       return null;
@@ -217,9 +225,11 @@ public final class Cache implements Closeable, Flushable {
     return response;
   }
 
+  // 如何缓存Response呢？
   CacheRequest put(Response response) {
     String requestMethod = response.request().method();
 
+    // 删除缓存
     if (HttpMethod.invalidatesCache(response.request().method())) {
       try {
         remove(response.request());

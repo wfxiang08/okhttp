@@ -26,6 +26,7 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSocketFactory;
+
 import okhttp3.Address;
 import okhttp3.CertificatePinner;
 import okhttp3.Connection;
@@ -77,7 +78,7 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
    * Immediately closes the socket connection if it's currently held. Use this to interrupt an
    * in-flight request from any thread. It's the caller's responsibility to close the request body
    * and response body streams; otherwise resources may be leaked.
-   *
+   * <p>
    * <p>This method is safe to be called concurrently, but provides limited guarantees. If a
    * transport layer connection has been established (such as a HTTP/2 stream) that is terminated.
    * Otherwise if a socket connection is being established, that is terminated.
@@ -100,7 +101,8 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
     return streamAllocation;
   }
 
-  @Override public Response intercept(Chain chain) throws IOException {
+  @Override
+  public Response intercept(Chain chain) throws IOException {
     Request request = chain.request();
 
     streamAllocation = new StreamAllocation(
@@ -144,8 +146,8 @@ public final class RetryAndFollowUpInterceptor implements Interceptor {
       if (priorResponse != null) {
         response = response.newBuilder()
             .priorResponse(priorResponse.newBuilder()
-                    .body(null)
-                    .build())
+                .body(null)
+                .build())
             .build();
       }
 
