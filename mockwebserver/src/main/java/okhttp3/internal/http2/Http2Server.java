@@ -51,6 +51,8 @@ public final class Http2Server extends Http2Connection.Listener {
   }
 
   private void run() throws Exception {
+    // HttpServer的创建
+    // OKHttp作为Server??
     ServerSocket serverSocket = new ServerSocket(8888);
     serverSocket.setReuseAddress(true);
 
@@ -62,6 +64,7 @@ public final class Http2Server extends Http2Connection.Listener {
         SSLSocket sslSocket = doSsl(socket);
         String protocolString = Platform.get().getSelectedProtocol(sslSocket);
         Protocol protocol = protocolString != null ? Protocol.get(protocolString) : null;
+
         if (protocol != Protocol.HTTP_2) {
           throw new ProtocolException("Protocol " + protocol + " unsupported");
         }
@@ -84,8 +87,12 @@ public final class Http2Server extends Http2Connection.Listener {
     SSLSocket sslSocket = (SSLSocket) sslSocketFactory.createSocket(
         socket, socket.getInetAddress().getHostAddress(), socket.getPort(), true);
     sslSocket.setUseClientMode(false);
+
     Platform.get().configureTlsExtensions(sslSocket, null,
         Collections.singletonList(Protocol.HTTP_2));
+
+    // ssl的握手
+    // 应用层实现，需要openssl-1.0.2+
     sslSocket.startHandshake();
     return sslSocket;
   }

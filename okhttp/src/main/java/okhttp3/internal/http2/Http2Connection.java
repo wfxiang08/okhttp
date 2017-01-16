@@ -220,12 +220,17 @@ public final class Http2Connection implements Closeable {
         }
         streamId = nextStreamId;
         nextStreamId += 2;
+
+        // 如何构建stream呢?
         stream = new Http2Stream(streamId, this, outFinished, inFinished, requestHeaders);
+
         flushHeaders = !out || bytesLeftInWriteWindow == 0L || stream.bytesLeftInWriteWindow == 0L;
         if (stream.isOpen()) {
           streams.put(streamId, stream);
         }
       }
+
+      // 开始写stream
       if (associatedStreamId == 0) {
         writer.synStream(outFinished, streamId, associatedStreamId, requestHeaders);
       } else if (client) {

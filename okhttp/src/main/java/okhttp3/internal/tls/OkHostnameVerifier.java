@@ -45,15 +45,24 @@ public final class OkHostnameVerifier implements HostnameVerifier {
 
   @Override
   public boolean verify(String host, SSLSession session) {
+    // 如何验证host呢?
+    // 似乎性能上没有可以优化的地方?
     try {
+      // 从session中获取证书， 取第一个证书
       Certificate[] certificates = session.getPeerCertificates();
+      // 验证
       return verify(host, (X509Certificate) certificates[0]);
+
+      // TODO: 如何自定义呢？
+      ///      从OkHostnameVerifier派生，对于制定的域名直接返回true, 否则调用基类的方法，做更加耗时的验证
     } catch (SSLException e) {
       return false;
     }
   }
 
   public boolean verify(String host, X509Certificate certificate) {
+
+    // 以IP， Hostname方式来验证host
     return verifyAsIpAddress(host)
         ? verifyIpAddress(host, certificate)
         : verifyHostname(host, certificate);

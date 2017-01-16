@@ -37,6 +37,8 @@ public interface Dns {
     // 系统的DNS实现
     @Override public List<InetAddress> lookup(String hostname) throws UnknownHostException {
       if (hostname == null) throw new UnknownHostException("hostname == null");
+
+      // 默认的实现
       return Arrays.asList(InetAddress.getAllByName(hostname));
     }
   };
