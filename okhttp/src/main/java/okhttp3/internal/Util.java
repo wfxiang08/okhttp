@@ -159,6 +159,8 @@ public final class Util {
     long originalDuration = source.timeout().hasDeadline()
         ? source.timeout().deadlineNanoTime() - now
         : Long.MAX_VALUE;
+
+    // 限制操作的时间
     source.timeout().deadlineNanoTime(now + Math.min(originalDuration, timeUnit.toNanos(duration)));
     try {
       Buffer skipBuffer = new Buffer();

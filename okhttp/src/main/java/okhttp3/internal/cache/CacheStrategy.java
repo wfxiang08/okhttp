@@ -200,6 +200,7 @@ public final class CacheStrategy {
       }
 
       CacheControl requestCaching = request.cacheControl();
+      // 不使用Cache, 或者需要处理ETag，ModifySince之类的请求
       if (requestCaching.noCache() || hasConditions(request)) {
         return new CacheStrategy(request, null);
       }

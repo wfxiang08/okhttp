@@ -363,6 +363,8 @@ public final class DiskLruCache implements Closeable, Flushable {
     for (Iterator<Entry> i = lruEntries.values().iterator(); i.hasNext(); ) {
       Entry entry = i.next();
       if (entry.currentEditor == null) {
+
+        // 每个Entry中保存几个文件呢？ valueCount
         for (int t = 0; t < valueCount; t++) {
           size += entry.lengths[t];
         }
@@ -452,16 +454,21 @@ public final class DiskLruCache implements Closeable, Flushable {
     return edit(key, ANY_SEQUENCE_NUMBER);
   }
 
+  // 什么情况下会返回null呢?
   synchronized Editor edit(String key, long expectedSequenceNumber) throws IOException {
     initialize();
 
     checkNotClosed();
     validateKey(key);
     Entry entry = lruEntries.get(key);
-    if (expectedSequenceNumber != ANY_SEQUENCE_NUMBER && (entry == null
-        || entry.sequenceNumber != expectedSequenceNumber)) {
+
+
+    // 1. 新添加的元素:
+    // expectedSequenceNumber == ANY_SEQUENCE_NUMBER， 则不存在这个问题
+    if (expectedSequenceNumber != ANY_SEQUENCE_NUMBER && (entry == null || entry.sequenceNumber != expectedSequenceNumber)) {
       return null; // Snapshot is stale.
     }
+
     if (entry != null && entry.currentEditor != null) {
       return null; // Another edit is in progress.
     }
@@ -479,14 +486,19 @@ public final class DiskLruCache implements Closeable, Flushable {
     journalWriter.writeUtf8(DIRTY).writeByte(' ').writeUtf8(key).writeByte('\n');
     journalWriter.flush();
 
+    // 错误
     if (hasJournalErrors) {
       return null; // Don't edit; the journal can't be written.
     }
 
+    // 新建Entry
     if (entry == null) {
       entry = new Entry(key);
       lruEntries.put(key, entry);
     }
+
+    // 添加一个Editor
+    // Editor和Entry的相互关系
     Editor editor = new Editor(entry);
     entry.currentEditor = editor;
     return editor;
@@ -524,7 +536,10 @@ public final class DiskLruCache implements Closeable, Flushable {
     return size;
   }
 
+  // 完成编辑?
+  //
   synchronized void completeEdit(Editor editor, boolean success) throws IOException {
+    // 状态一致
     Entry entry = editor.entry;
     if (entry.currentEditor != editor) {
       throw new IllegalStateException();
@@ -607,7 +622,9 @@ public final class DiskLruCache implements Closeable, Flushable {
     validateKey(key);
     Entry entry = lruEntries.get(key);
     if (entry == null) return false;
+
     boolean removed = removeEntry(entry);
+
     if (removed && size <= maxSize) mostRecentTrimFailed = false;
     return removed;
   }
@@ -617,6 +634,7 @@ public final class DiskLruCache implements Closeable, Flushable {
       entry.currentEditor.detach(); // Prevent the edit from completing normally.
     }
 
+    // 从Entry中删除: valueCount个元素
     for (int i = 0; i < valueCount; i++) {
       fileSystem.delete(entry.cleanFiles[i]);
       size -= entry.lengths[i];
@@ -674,6 +692,7 @@ public final class DiskLruCache implements Closeable, Flushable {
 
   void trimToSize() throws IOException {
     while (size > maxSize) {
+      // 按照LRU规则淘汰
       Entry toEvict = lruEntries.values().iterator().next();
       removeEntry(toEvict);
     }
@@ -823,6 +842,8 @@ public final class DiskLruCache implements Closeable, Flushable {
   /** Edits the values for an entry. */
   public final class Editor {
     final Entry entry;
+
+    // 对于的元素是否被修改了
     final boolean[] written;
     private boolean done;
 
@@ -838,6 +859,7 @@ public final class DiskLruCache implements Closeable, Flushable {
      * an editor has been detached it is possible for another editor to edit the entry.
      */
     void detach() {
+      // 文件系统和这里的关系?
       if (entry.currentEditor == this) {
         for (int i = 0; i < valueCount; i++) {
           try {

@@ -17,6 +17,7 @@
 package okhttp3.internal.cache;
 
 import java.io.IOException;
+
 import okhttp3.Headers;
 import okhttp3.Interceptor;
 import okhttp3.Protocol;
@@ -41,7 +42,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static okhttp3.internal.Util.closeQuietly;
 import static okhttp3.internal.Util.discard;
 
-/** Serves requests from the cache and writes responses to the cache. */
+/**
+ * Serves requests from the cache and writes responses to the cache.
+ */
 public final class CacheInterceptor implements Interceptor {
   final InternalCache cache;
 
@@ -54,15 +57,18 @@ public final class CacheInterceptor implements Interceptor {
     // 如何通过Inteceptor实现Cache操作呢?
 
     // 1. cache
-    Response cacheCandidate = cache != null  ? cache.get(chain.request()) : null;
+    Response cacheCandidate = cache != null ? cache.get(chain.request()) : null;
 
     long now = System.currentTimeMillis();
 
     // 2. 通过CacheStrategy来处理cacheResponse
     CacheStrategy strategy = new CacheStrategy.Factory(now, chain.request(), cacheCandidate).get();
+
+    // 根据策略，返回cache, 或者network
     Request networkRequest = strategy.networkRequest;
     Response cacheResponse = strategy.cacheResponse;
 
+    // 对于我们的Media文件，我们期望是直接返回，不在执行: 304请求
     if (cache != null) {
       cache.trackResponse(strategy);
     }
@@ -123,6 +129,8 @@ public final class CacheInterceptor implements Interceptor {
         // Content-Encoding header (as performed by initContentStream()).
         // 更新统计数据
         cache.trackConditionalCacheHit();
+
+        // 1. 更新Cache
         cache.update(cacheResponse, response);
         return response;
       } else {
@@ -152,7 +160,7 @@ public final class CacheInterceptor implements Interceptor {
   }
 
   private CacheRequest maybeCache(Response userResponse, Request networkRequest,
-      InternalCache responseCache) throws IOException {
+                                  InternalCache responseCache) throws IOException {
     if (responseCache == null) return null;
 
     // Should we cache this response for this request?
@@ -167,7 +175,8 @@ public final class CacheInterceptor implements Interceptor {
       return null;
     }
 
-    // Offer this request to the cache.
+    // 2. 添加 Offer this request to the cache.
+    //    然后一个
     return responseCache.put(userResponse);
   }
 
@@ -178,18 +187,27 @@ public final class CacheInterceptor implements Interceptor {
    */
   private Response cacheWritingResponse(final CacheRequest cacheRequest, Response response)
       throws IOException {
+
     // Some apps return a null body; for compatibility we treat that like a null cache request.
     if (cacheRequest == null) return response;
+
+
+    // 需要将: response中的数据写入 cacheRequest，例如: CacheRequestImpl
     Sink cacheBodyUnbuffered = cacheRequest.body();
     if (cacheBodyUnbuffered == null) return response;
 
+    // 从response.body()中读取网络数据，然后写入source中
     final BufferedSource source = response.body().source();
+
     final BufferedSink cacheBody = Okio.buffer(cacheBodyUnbuffered);
 
+    // 封装了source, 在读取数据时
     Source cacheWritingSource = new Source() {
       boolean cacheRequestClosed;
 
-      @Override public long read(Buffer sink, long byteCount) throws IOException {
+      @Override
+      public long read(Buffer sink, long byteCount) throws IOException {
+        // 1. 读取数据，从source中读取出来，放在sink中
         long bytesRead;
         try {
           bytesRead = source.read(sink, byteCount);
@@ -201,6 +219,7 @@ public final class CacheInterceptor implements Interceptor {
           throw e;
         }
 
+        // 什么时候Close呢？
         if (bytesRead == -1) {
           if (!cacheRequestClosed) {
             cacheRequestClosed = true;
@@ -209,16 +228,23 @@ public final class CacheInterceptor implements Interceptor {
           return -1;
         }
 
+        // 从sink中拷贝一定的数据，然后保存到: cacheBody中
+        // 这个地方可能timeout
         sink.copyTo(cacheBody.buffer(), sink.size() - bytesRead, bytesRead);
         cacheBody.emitCompleteSegments();
         return bytesRead;
       }
 
-      @Override public Timeout timeout() {
+      @Override
+      public Timeout timeout() {
         return source.timeout();
       }
 
-      @Override public void close() throws IOException {
+      @Override
+      public void close() throws IOException {
+        // 如果没有关闭，并且使劲读取数据
+        // 如果正常，则会触发cacheBody的正常关闭
+        // 期待在: 100ms内完成数据的读取
         if (!cacheRequestClosed
             && !discard(this, HttpCodec.DISCARD_STREAM_TIMEOUT_MILLIS, MILLISECONDS)) {
           cacheRequestClosed = true;
@@ -233,7 +259,9 @@ public final class CacheInterceptor implements Interceptor {
         .build();
   }
 
-  /** Combines cached headers with a network headers as defined by RFC 2616, 13.5.3. */
+  /**
+   * Combines cached headers with a network headers as defined by RFC 2616, 13.5.3.
+   */
   private static Headers combine(Headers cachedHeaders, Headers networkHeaders) {
     Headers.Builder result = new Headers.Builder();
 

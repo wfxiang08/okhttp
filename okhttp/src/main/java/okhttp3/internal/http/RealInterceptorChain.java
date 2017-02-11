@@ -94,6 +94,9 @@ public final class RealInterceptorChain implements Interceptor.Chain {
           + " must call proceed() exactly once");
     }
 
+    // 如何组织的呢？
+    // RealInterceptorChain
+    //    执行当前的intercept, 当前的intercept可以得到带有下一个状态的Chain
     // Call the next interceptor in the chain.
     RealInterceptorChain next = new RealInterceptorChain(
         interceptors, streamAllocation, httpCodec, connection, index + 1, request);

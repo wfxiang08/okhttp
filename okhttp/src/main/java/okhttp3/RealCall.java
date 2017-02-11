@@ -74,6 +74,7 @@ final class RealCall implements Call {
       client.dispatcher().executed(this);
 
       Response result = getResponseWithInterceptorChain();
+
       if (result == null) {
         throw new IOException("Canceled");
       }
@@ -151,12 +152,17 @@ final class RealCall implements Call {
     protected void execute() {
       boolean signalledCallback = false;
       try {
+        // 如何处理一个请求呢？
+        // 获取Response
         Response response = getResponseWithInterceptorChain();
+
+        // 处理各种不同的回调
         if (retryAndFollowUpInterceptor.isCanceled()) {
           signalledCallback = true;
           responseCallback.onFailure(RealCall.this, new IOException("Canceled"));
         } else {
           signalledCallback = true;
+          // 在callback中可以逐步处理这个response
           responseCallback.onResponse(RealCall.this, response);
         }
       } catch (IOException e) {
@@ -191,14 +197,22 @@ final class RealCall implements Call {
     List<Interceptor> interceptors = new ArrayList<>();
 
     // 这些Interceptors是如何工作的呢?
+    //
     interceptors.addAll(client.interceptors());
+
     interceptors.add(retryAndFollowUpInterceptor);
     interceptors.add(new BridgeInterceptor(client.cookieJar()));
+
+    // 缓存管理
     interceptors.add(new CacheInterceptor(client.internalCache())); // 缓存的管理
+    // 连接管理
     interceptors.add(new ConnectInterceptor(client));
+
     if (!forWebSocket) {
       interceptors.addAll(client.networkInterceptors());
     }
+
+    // 最后一步: 直接访问网路?
     interceptors.add(new CallServerInterceptor(forWebSocket));
 
     // 将全部的Interceptors构成一个Chain

@@ -436,6 +436,7 @@ public class OkHttpClient implements Cloneable, Call.Factory, WebSocket.Factory 
   @Override
   public Call newCall(Request request) {
     // 如何创建一个网络请求呢?
+    // 注意：创建的是RealCall
     return new RealCall(this, request, false /* for web socket */);
   }
 

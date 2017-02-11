@@ -47,9 +47,11 @@ public final class Response implements Closeable {
   final Handshake handshake;
   final Headers headers;
   final ResponseBody body;
+
   final Response networkResponse;
   final Response cacheResponse;
   final Response priorResponse;
+
   final long sentRequestAtMillis;
   final long receivedResponseAtMillis;
 
